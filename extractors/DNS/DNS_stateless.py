@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import re
+import csv
 import math
+import os.path
 
 from scapy.all import *
 from collections import Counter
@@ -103,6 +105,16 @@ def get_stateless_features(packet):
     # Longest word feature
     features['longest_word'] = extract_longest_word(query_name)
 
+    # Write feature rows to csv file
+    filename = 'sample.csv'
+    with open(filename, 'a', newline='') as csvfile:
+        fieldnames = ['upper', 'lower', 'numeric', 'special', 'FQDN_count', 'entropy', 'labels', 'labels_max', 'labels_average', 'sld', 'subdomain', 'subdomain_length', 'len', 'longest_word']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if not os.path.isfile(filename):
+            writer.writeheader()
+        writer.writerows([features])
+
     return features
 
+# Sniff packages
 sniff(filter="udp port 53", prn=get_stateless_features, store=False)
