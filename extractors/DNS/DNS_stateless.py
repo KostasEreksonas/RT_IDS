@@ -106,8 +106,10 @@ def get_stateless_features(packet):
     features['longest_word'] = extract_longest_word(query_name)
 
     # Write feature rows to csv file
-    filename = 'sample.csv'
-    with open(filename, 'a', newline='') as csvfile:
+    dir = '../../data/DNS/stateless'
+    filename = 'stateless.csv'
+
+    with open(f'{dir}/{filename}', 'a', newline='') as csvfile:
         fieldnames = ['upper', 'lower', 'numeric', 'special', 'FQDN_count', 'entropy', 'labels', 'labels_max', 'labels_average', 'sld', 'subdomain', 'subdomain_length', 'len', 'longest_word']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         if not os.path.isfile(filename):
