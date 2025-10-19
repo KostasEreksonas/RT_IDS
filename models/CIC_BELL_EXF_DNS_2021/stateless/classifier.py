@@ -5,47 +5,85 @@ import pandas as pd
 
 from sklearn.preprocessing import TargetEncoder, StandardScaler
 
-# Read stateless data
-data_dir = '../../../data/DNS/stateless/stateless.csv'
-data = pd.read_csv(data_dir)
+class Classifier:
+    """
+    Classify individual DNS packets using stateless features
+    """
+    def __init__(self, data_path, encoder_path, model_path):
+        self.data_path = data_path
+        self.encoder_path = encoder_path
+        self.model_path = model_path
+        self.data = None
+        self.timestamp = None
+        self.src_ip = None
+        self.encoded_data = None
+        self.scaled_data = None
+        self.benign_count = 0
+        self.malicious_count = 0
+        self.ratios = {}
 
-encoder_dir = '../../../encoders/DNS/stateless'
-encoder = pickle.load(open(f'{encoder_dir}/DNS_stateless_encoder.pkl', 'rb'))
+    def load_data(self):
+        self.data = pd.read_csv(self.data_path)
+        self.timestamp = self.data['timestamp']
+        self.src_ip = self.data['src_ip']
+        self.data = self.data.drop(['timestamp', 'src_ip'], axis=1)
 
-timestamp = data['timestamp']
-src_ip = data['src_ip']
+    def encode_features(self):
+        with open(self.encoder_path, 'rb') as f:
+            encoder = pickle.load(f)
+        categorical_columns = self.data.select_dtypes(include='object').columns
+        self.data[categorical_columns] = encoder.transform(self.data[categorical_columns])
 
-data.drop(['timestamp', 'src_ip'], axis=1, inplace=True)
+    def scale_features(self):
+        scaler = StandardScaler()
+        self.data = scaler.fit_transform(self.data)
 
-categorical_columns = data.select_dtypes(include='object').columns
+    def load_model(self):
+        with open(self.model_path, 'rb') as f:
+            self.model = pickle.load(f)
 
-data[categorical_columns] = encoder.transform(data[categorical_columns])
+    def predict(self):
+        self.predictions = self.model.predict(self.data)
 
-scaler = StandardScaler()
+    def calculate_stats(self):
+        self.benign_count = (self.predictions == 0).sum()
+        self.malicious_count = (self.predictions == 1).sum()
+        packet_count = len(self.predictions)
+        self.ratios = {
+            'benign_ratio': self.benign_count / packet_count,
+            'benign_count': self.benign_count,
+            'malicious_ratio': self.malicious_count / packet_count,
+            'malicious_count': self.malicious_count,
+        }
 
-data = scaler.fit_transform(data)
+    def get_results_df(self):
+        df = pd.concat([self.timestamp, self.src_ip], axis=1)
+        preds = pd.Series(self.predictions, name='predictions')
+        df['predictions'] = preds
 
-model = pickle.load(open('XGB_stateless.pkl', 'rb'))
+        return df
 
-predictions = model.predict(data)
+    def run(self):
+        self.load_data()
+        self.encode_features()
+        self.scale_features()
+        self.load_model()
+        self.predict()
+        self.calculate_stats()
 
-benign_count, malicious_count = [0 for x in range(2)]
+        return self.ratios, self.get_results_df()
 
-for prediction in predictions:
-    if prediction == 0: # Benign predictions
-        benign_count += 1
-    elif prediction == 1: # Malicious predictions
-        malicious_count += 1
+def main():
+    data = '../../../data/DNS/stateless/stateless.csv'
+    encoder = '../../../encoders/DNS/stateless/DNS_stateless_encoder.pkl'
+    model = 'XGB_stateless.pkl'
+    
+    classifier = Classifier(data, encoder, model)
 
-packet_count = len(predictions)
+    ratios, results_df = classifier.run()
+    
+    print(ratios)
+    print(results_df)
 
-tau = malicious_count / packet_count
-
-df = pd.concat([timestamp, src_ip], axis=1)
-
-preds = pd.Series(predictions)
-df['predictions'] = preds
-
-print(f"Benign ratio: {benign_count / packet_count}, Benign packet count: {benign_count}")
-print(f"Malicious ratio: {tau}, Malicious packet count: {malicious_count}")
-print(df)
+if __name__ == "__main__":
+    main()
