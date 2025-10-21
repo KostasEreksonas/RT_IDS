@@ -47,27 +47,24 @@ class PacketInfo:
 
     def set_source_ip(self, packet):
         """Set source IP address"""
-        if packet.haslayer(IP):
-            self.src_ip = packet[IP].src
+        self.src_ip = packet[IP].src
 
     def get_source_ip(self) -> str:
         self.src_ip
 
     def set_destination_ip(self, packet):
         """Set destination IP address"""
-        if packet.haslayer(IP):
-            self.dst_ip = packet[IP].dst
+        self.dst_ip = packet[IP].dst
     
     def get_destination_ip(self) -> str:
         self.dst_ip
 
     def set_source_port(self, packet):
         """Set source port"""
-        if packet.haslayer(IP):
-            if packet.haslayer(TCP):
-                self.src_port = packet[TCP].sport
-            elif packet.haslayer(UDP):
-                self.src_port = packet[UDP].sport
+        if packet.haslayer(TCP):
+            self.src_port = packet[TCP].sport
+        elif packet.haslayer(UDP):
+            self.src_port = packet[UDP].sport
 
         if self.pid is None and self.p_name == "":
             connections = psutil.net_connections()
@@ -81,11 +78,10 @@ class PacketInfo:
 
     def set_destination_port(self, packet):
         """Set destination port"""
-        if packet.haslayer(IP):
-            if packet.haslayer(TCP):
-                self.dst_port = packet[TCP].dport
-            elif packet.haslayer(UDP):
-                self.dst_port = packet[UDP].dport
+        if packet.haslayer(TCP):
+            self.dst_port = packet[TCP].dport
+        elif packet.haslayer(UDP):
+            self.dst_port = packet[UDP].dport
         
         if self.pid is None and self.p_name == "":
             connections = psutil.net_connections()
@@ -126,11 +122,10 @@ class PacketInfo:
 
     def set_header_size(self, packet):
         """Calculate header size of a packet"""
-        if packet.haslayer(IP):
-            if packet.haslayer(TCP):
-                self.header_size = len(packet[TCP]) - len(packet[TCP].payload)
-            elif packet.haslayer(UDP):
-                self.header_size = len(packet[UDP]) - len(packet[UDP].payload)
+        if packet.haslayer(TCP):
+            self.header_size = len(packet[TCP]) - len(packet[TCP].payload)
+        elif packet.haslayer(UDP):
+            self.header_size = len(packet[UDP]) - len(packet[UDP].payload)
 
     def get_header_size(self) -> int:
         """Get header size"""
@@ -138,11 +133,10 @@ class PacketInfo:
 
     def set_payload_size(self, packet):
         """Extract payload size of a packet"""
-        if packet.haslayer(IP):
-            if packet.haslayer(TCP):
-                self.payload_size = len(packet[TCP].payload)
-            elif packet.haslayer(UDP):
-                self.payload_size = len(packet[UDP].payload)
+        if packet.haslayer(TCP):
+            self.payload_size = len(packet[TCP].payload)
+        elif packet.haslayer(UDP):
+            self.payload_size = len(packet[UDP].payload)
 
     def get_payload_size(self) -> int:
         return self.payload_size
@@ -152,7 +146,7 @@ class PacketInfo:
         Extract packet window size of a packet
         Packet window size - amount of data that a receiver is ready to accept in a TCP connection
         """
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             self.window_size = packet[0].window
 
     def get_window_size(self) -> int:
@@ -160,7 +154,7 @@ class PacketInfo:
     
     def set_FIN_flag(self, packet):
         """Determine if TCP packet has FIN flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'FIN' in flag_arr:
@@ -171,7 +165,7 @@ class PacketInfo:
     
     def set_SYN_flag(self, packet):
         """Determine if TCP packet has SYN flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'SYN' in flag_arr:
@@ -182,7 +176,7 @@ class PacketInfo:
     
     def set_RST_flag(self, packet):
         """Determine if TCP packet has RST flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'RST' in flag_arr:
@@ -193,7 +187,7 @@ class PacketInfo:
     
     def set_PSH_flag(self, packet):
         """Determine if TCP packet has PSH flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'PSH' in flag_arr:
@@ -204,7 +198,7 @@ class PacketInfo:
     
     def set_ACK_flag(self, packet):
         """Determine if TCP packet has ACK flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'ACK' in flag_arr:
@@ -215,7 +209,7 @@ class PacketInfo:
     
     def set_URG_flag(self, packet):
         """Determine if TCP packet has URG flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'URG' in flag_arr:
@@ -226,7 +220,7 @@ class PacketInfo:
     
     def set_CWE_flag(self, packet):
         """Determine if TCP packet has CWE flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'CWE' in flag_arr:
@@ -237,7 +231,7 @@ class PacketInfo:
     
     def set_ECE_flag(self, packet):
         """Determine if TCP packet has ECE flag"""
-        if packet.haslayer(IP) and packet.haslayer(TCP):
+        if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
             flag_arr = [flags[x] for x in tcp_flags]
             if 'ECE' in flag_arr:
@@ -261,27 +255,29 @@ class PacketInfo:
         return (self.src_ip, self.src_port, self.dst_ip, self.dst_port, self.protocol, self.timestamp, self.pid, self.p_name, self.packet_size, self.header_size, self.payload_size, self.window_size, found_flags)
 
 def info(packet):
-    p = PacketInfo()
-    p.set_source_ip(packet)
-    p.set_destination_ip(packet)
-    p.set_source_port(packet)
-    p.set_destination_port(packet)
-    p.set_protocol(packet)
-    p.set_timestamp(packet)
-    p.set_packet_size(packet)
-    p.set_header_size(packet)
-    p.set_payload_size(packet)
-    p.set_window_size(packet)
-    p.set_FIN_flag(packet)
-    p.set_SYN_flag(packet)
-    p.set_RST_flag(packet)
-    p.set_PSH_flag(packet)
-    p.set_ACK_flag(packet)
-    p.set_URG_flag(packet)
-    p.set_CWE_flag(packet)
-    p.set_ECE_flag(packet)
+    """Print IP packet metadata"""
+    if packet.haslayer(IP):
+        p = PacketInfo()
+        p.set_source_ip(packet)
+        p.set_destination_ip(packet)
+        p.set_source_port(packet)
+        p.set_destination_port(packet)
+        p.set_protocol(packet)
+        p.set_timestamp(packet)
+        p.set_packet_size(packet)
+        p.set_header_size(packet)
+        p.set_payload_size(packet)
+        p.set_window_size(packet)
+        p.set_FIN_flag(packet)
+        p.set_SYN_flag(packet)
+        p.set_RST_flag(packet)
+        p.set_PSH_flag(packet)
+        p.set_ACK_flag(packet)
+        p.set_URG_flag(packet)
+        p.set_CWE_flag(packet)
+        p.set_ECE_flag(packet)
 
-    print(p.packet_info())
+        print(p.packet_info())
 
 def main():
     sniff(filter="ip", prn=info, store=False)
