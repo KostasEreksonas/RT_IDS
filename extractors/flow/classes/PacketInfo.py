@@ -50,14 +50,14 @@ class PacketInfo:
         self.src_ip = packet[IP].src
 
     def get_source_ip(self) -> str:
-        self.src_ip
+        return self.src_ip
 
     def set_destination_ip(self, packet):
         """Set destination IP address"""
         self.dst_ip = packet[IP].dst
     
     def get_destination_ip(self) -> str:
-        self.dst_ip
+        return self.dst_ip
 
     def set_source_port(self, packet):
         """Set source port"""
@@ -253,34 +253,3 @@ class PacketInfo:
             'ECE': self.get_ECE_flag(),
         }
         return (self.src_ip, self.src_port, self.dst_ip, self.dst_port, self.protocol, self.timestamp, self.pid, self.p_name, self.packet_size, self.header_size, self.payload_size, self.window_size, found_flags)
-
-def info(packet):
-    """Print IP packet metadata"""
-    if packet.haslayer(IP):
-        p = PacketInfo()
-        p.set_source_ip(packet)
-        p.set_destination_ip(packet)
-        p.set_source_port(packet)
-        p.set_destination_port(packet)
-        p.set_protocol(packet)
-        p.set_timestamp(packet)
-        p.set_packet_size(packet)
-        p.set_header_size(packet)
-        p.set_payload_size(packet)
-        p.set_window_size(packet)
-        p.set_FIN_flag(packet)
-        p.set_SYN_flag(packet)
-        p.set_RST_flag(packet)
-        p.set_PSH_flag(packet)
-        p.set_ACK_flag(packet)
-        p.set_URG_flag(packet)
-        p.set_CWE_flag(packet)
-        p.set_ECE_flag(packet)
-
-        print(p.packet_info())
-
-def main():
-    sniff(filter="ip", prn=info, store=False)
-
-if __name__ == "__main__":
-    main()
