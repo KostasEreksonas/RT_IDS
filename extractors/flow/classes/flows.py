@@ -27,9 +27,12 @@ class FlowRecord:
         """Reconstruct original (unsorted) flow key"""
         return (self.src_ip, self.dst_ip, self.src_port, self.dst_port, self.protocol)
 
-    def get_packet_key(self):
-        """Return a 5-tuple key of a current packet"""
-        return self.packet_key
+    def get_packet_key(self, packet):
+        """
+        Return a 5-tuple key of a current packet
+        Test wether flows are bidirectional
+        """
+        return packet
 
 def sort_key(key):
     """Normalize 5-tuple by sorting IP addresses and ports"""
@@ -81,7 +84,7 @@ def info(packet):
         
         if flow_key in flow_cache.keys():
             original_key = flow_cache[flow_key].get_original_flow_key()
-            packet_key = flow_cache[flow_key].get_packet_key()
+            packet_key = flow_cache[flow_key].get_packet_key(packet_key)
             print(f"{original_key}; {packet_key}")
         else:
             flow_cache[flow_key] = FlowRecord(flow_key, packet_key)
