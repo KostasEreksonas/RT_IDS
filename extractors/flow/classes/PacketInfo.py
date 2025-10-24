@@ -143,7 +143,7 @@ class PacketInfo:
 
     def set_window_size(self, packet):
         """
-        Extract packet window size of a packet
+        Extract window size from a network packet that is given
         Packet window size - amount of data that a receiver is ready to accept in a TCP connection
         """
         if packet.haslayer(TCP):
@@ -152,7 +152,7 @@ class PacketInfo:
     def get_window_size(self) -> int:
         return self.window_size
     
-    def set_FIN_flag(self, packet):
+    def set_fin_flag(self, packet):
         """Determine if TCP packet has FIN flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -160,10 +160,10 @@ class PacketInfo:
             if 'FIN' in flag_arr:
                 self.FIN_flag = True
 
-    def get_FIN_flag(self):
+    def get_fin_flag(self):
         return self.FIN_flag
     
-    def set_SYN_flag(self, packet):
+    def set_syn_flag(self, packet):
         """Determine if TCP packet has SYN flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -171,10 +171,10 @@ class PacketInfo:
             if 'SYN' in flag_arr:
                 self.SYN_flag = True
 
-    def get_SYN_flag(self):
+    def get_syn_flag(self):
         return self.SYN_flag
     
-    def set_RST_flag(self, packet):
+    def set_rst_flag(self, packet):
         """Determine if TCP packet has RST flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -182,10 +182,10 @@ class PacketInfo:
             if 'RST' in flag_arr:
                 self.RST_flag = True
 
-    def get_RST_flag(self):
+    def get_rst_flag(self):
         return self.RST_flag
     
-    def set_PSH_flag(self, packet):
+    def set_psh_flag(self, packet):
         """Determine if TCP packet has PSH flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -193,10 +193,10 @@ class PacketInfo:
             if 'PSH' in flag_arr:
                 self.PSH_flag = True
 
-    def get_PSH_flag(self):
+    def get_psh_flag(self):
         return self.PSH_flag
     
-    def set_ACK_flag(self, packet):
+    def set_ack_flag(self, packet):
         """Determine if TCP packet has ACK flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -204,10 +204,10 @@ class PacketInfo:
             if 'ACK' in flag_arr:
                 self.ACK_flag = True
 
-    def get_ACK_flag(self):
+    def get_ack_flag(self):
         return self.ACK_flag
     
-    def set_URG_flag(self, packet):
+    def set_urg_flag(self, packet):
         """Determine if TCP packet has URG flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -215,10 +215,10 @@ class PacketInfo:
             if 'URG' in flag_arr:
                 self.URG_flag = True
 
-    def get_URG_flag(self):
+    def get_urg_flag(self):
         return self.URG_flag
     
-    def set_CWE_flag(self, packet):
+    def set_cwe_flag(self, packet):
         """Determine if TCP packet has CWE flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -226,10 +226,10 @@ class PacketInfo:
             if 'CWE' in flag_arr:
                 self.CWE_flag = True
 
-    def get_CWE_flag(self):
+    def get_cwe_flag(self):
         return self.CWE_flag
     
-    def set_ECE_flag(self, packet):
+    def set_ece_flag(self, packet):
         """Determine if TCP packet has ECE flag"""
         if packet.haslayer(TCP):
             tcp_flags = packet[TCP].flags
@@ -237,19 +237,19 @@ class PacketInfo:
             if 'ECE' in flag_arr:
                 self.ECE_flag = True
 
-    def get_ECE_flag(self):
+    def get_ece_flag(self):
         return self.ECE_flag
 
     def packet_info(self):
         """Collect packet metadata"""
         found_flags = {
-            'FIN': self.get_FIN_flag(),
-            'SYN': self.get_SYN_flag(),
-            'RST': self.get_RST_flag(),
-            'PSH': self.get_PSH_flag(),
-            'ACK': self.get_ACK_flag(),
-            'URG': self.get_URG_flag(),
-            'CWE': self.get_CWE_flag(),
-            'ECE': self.get_ECE_flag(),
+            'FIN': self.get_fin_flag(),
+            'SYN': self.get_syn_flag(),
+            'RST': self.get_rst_flag(),
+            'PSH': self.get_psh_flag(),
+            'ACK': self.get_ack_flag(),
+            'URG': self.get_urg_flag(),
+            'CWE': self.get_cwe_flag(),
+            'ECE': self.get_ece_flag(),
         }
-        return (self.src_ip, self.src_port, self.dst_ip, self.dst_port, self.protocol, self.timestamp, self.pid, self.p_name, self.packet_size, self.header_size, self.payload_size, self.window_size, found_flags)
+        return self.src_ip, self.src_port, self.dst_ip, self.dst_port, self.protocol, self.timestamp, self.pid, self.p_name, self.packet_size, self.header_size, self.payload_size, self.window_size, found_flags
