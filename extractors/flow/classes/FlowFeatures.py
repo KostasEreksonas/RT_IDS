@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
+from scapy.layers.inet import TCP
+import math
 
-from scapy.all import *
-from PacketInfo import PacketInfo
-
-flow_cache = {}
-
-class FlowRecord:
-    """Generate flow records and compute statistical features from aggregated packet metadata"""
+class FlowFeatures:
+    """Compute statistical flow features from aggregated packet metadata"""
     def __init__(self, flow_key, initial_packet, timestamp):
         """
         Initialize new flow record
@@ -24,6 +20,7 @@ class FlowRecord:
         self.protocol = initial_packet[4]
         self.timestamp_initial = timestamp
         self.timestamp = timestamp
+        self.last_seen = timestamp
 
         self.flow_duration = 0
 
@@ -99,35 +96,6 @@ class FlowRecord:
         self.average_packet_size = 0.0
         self.average_fwd_segment_size = 0.0
         self.average_bwd_segment_size = 0.0
-
-        self.fwd_average_bytes_bulk = 0
-        self.fwd_average_packets_bulk = 0
-        self.fwd_average_bulk_rate = 0
-
-        self.bwd_average_bytes_bulk = 0
-        self.bwd_average_packets_bulk = 0
-        self.bwd_average_bulk_rate = 0
-
-        self.subflow_fwd_packets = 0
-        self.subflow_fwd_bytes = 0
-        self.subflow_bwd_packets = 0
-        self.subflow_bwd_bytes = 0
-
-        self.init_win_bytes_fwd = 0
-        self.init_win_bytes_bwd = 0
-
-        self.act_data_pkt_fwd = 0
-        self.min_seg_size_fwd = 0
-
-        self.active_mean = 0.0
-        self.active_std = 0.0
-        self.active_min = 0
-        self.active_max = 0
-
-        self.idle_mean = 0.0
-        self.idle_std = 0.0
-        self.idle_min = 0
-        self.idle_max = 0
 
     def get_original_flow_key(self) -> tuple[str, str, int, int, str]:
         """Reconstruct original (unsorted) flow key"""
@@ -273,14 +241,21 @@ class FlowRecord:
             elif urg:
                 self.bwd_URG_flags += 1
 
-    def get_flow_statistics(self):
+    def get_initial_timestamp(self):
+        """Timestamp of flow initialization"""
+        return self.timestamp_initial
+
+    def update_last_seen_timestamp(self, timestamp):
+        """Update last seen timestamp"""
+        self.last_seen = timestamp
+
+    def get_last_seen_timestamp(self):
+        """Timestamp when a packet was last seen"""
+        return self.last_seen
+
+    def export_flow_statistics(self):
         """Return a tuple of flow statistics"""
-        return self.timestamp_initial, \
-            self.protocol, \
-            self.src_ip, \
-            self.src_port, \
-            self.dst_ip, \
-            self.dst_port, \
+        return self.dst_port, \
             self.flow_duration, \
             self.total_fwd_packets, \
             self.total_bwd_packets, \
@@ -335,108 +310,3 @@ class FlowRecord:
             self.average_packet_size, \
             self.average_fwd_segment_size, \
             self.average_bwd_segment_size
-            #self.fwd_average_bytes_bulk, \
-            #self.fwd_average_packets_bulk, \
-            #self.fwd_average_bulk_rate, \
-            #self.bwd_average_bytes_bulk, \
-            #self.bwd_average_packets_bulk, \
-            #self.bwd_average_bulk_rate, \
-            #self.subflow_fwd_packets, \
-            #self.subflow_fwd_bytes, \
-            #self.subflow_bwd_packets, \
-            #self.subflow_bwd_bytes, \
-            #self.init_win_bytes_fwd, \
-            #self.init_win_bytes_bwd, \
-            #self.act_data_pkt_fwd, \
-            #self.min_seg_size_fwd, \
-            #self.active_mean, \
-            #self.active_std, \
-            #self.active_max, \
-            #self.active_min, \
-            #self.idle_mean, \
-            #self.idle_std, \
-            #self.idle_max, \
-            #self.idle_min
-
-
-def sort_key(key):
-    """Normalize 5-tuple by sorting IP addresses and ports"""
-    src_ip = key[0]
-    dst_ip = key[1]
-    src_port = key[2]
-    dst_port = key[3]
-    protocol = key[4]
-
-    src = (src_ip, src_port)
-    dst = (dst_ip, dst_port)
-
-    if src < dst:
-        return src[0], dst[0], src[1], dst[1], protocol
-    else:
-        return dst[0], src[0], dst[1], src[1], protocol
-
-def info(network_packet):
-    if network_packet.haslayer(IP):
-        p = PacketInfo()
-        p.set_source_ip(network_packet)
-        p.set_destination_ip(network_packet)
-        p.set_source_port(network_packet)
-        p.set_destination_port(network_packet)
-        p.set_protocol(network_packet)
-        p.set_timestamp(network_packet)
-        p.set_packet_size(network_packet)
-        p.set_header_size(network_packet)
-        p.set_payload_size(network_packet)
-        p.set_window_size(network_packet)
-        p.set_fin_flag(network_packet)
-        p.set_syn_flag(network_packet)
-        p.set_rst_flag(network_packet)
-        p.set_psh_flag(network_packet)
-        p.set_ack_flag(network_packet)
-        p.set_urg_flag(network_packet)
-        p.set_cwe_flag(network_packet)
-        p.set_ece_flag(network_packet)
-
-        # Construct a 5-tuple
-        src_ip = p.get_source_ip()
-        dst_ip = p.get_destination_ip()
-        src_port = p.get_source_port()
-        dst_port = p.get_destination_port()
-        protocol = p.get_protocol()
-
-        # Get timestamp
-        timestamp = p.get_timestamp()
-
-        # Collect flags into a tuple
-        flags = p.get_fin_flag(), \
-            p.get_syn_flag(), \
-            p.get_rst_flag(), \
-            p.get_psh_flag(), \
-            p.get_ack_flag(), \
-            p.get_urg_flag(), \
-            p.get_cwe_flag(), \
-            p.get_ece_flag()
-
-        packet_key = (src_ip, dst_ip, src_port, dst_port, protocol)
-        flow_key = sort_key(packet_key)
-        if flow_key in flow_cache.keys():
-            original_key = flow_cache[flow_key].get_original_flow_key()
-            timestamp = p.get_timestamp()
-            size = p.get_packet_size()
-            header = p.get_header_size()
-            flow_cache[flow_key].calculate_packet_statistics(packet_key, size)
-            flow_cache[flow_key].calculate_per_second_stats(timestamp)
-            flow_cache[flow_key].calculate_header_length(packet_key, header)
-            flow_cache[flow_key].calculate_iat_statistics(packet_key, timestamp)
-            flow_cache[flow_key].count_flag_statistics(network_packet, flags, packet_key)
-            stats = flow_cache[flow_key].get_flow_statistics()
-            print(f"{stats}, {len(stats)}")
-        else:
-            # Initialize new flow record
-            flow_cache[flow_key] = FlowRecord(flow_key, packet_key, timestamp)
-
-def main():
-    sniff(filter="ip", prn=info, store=False)
-
-if __name__ =="__main__":
-    main()

@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-
+from scapy.layers.inet import IP, TCP, UDP
 import psutil
-from scapy.all import *
 
 flags = {
     'F': 'FIN',
@@ -253,3 +251,7 @@ class PacketInfo:
             'ECE': self.get_ece_flag(),
         }
         return self.src_ip, self.src_port, self.dst_ip, self.dst_port, self.protocol, self.timestamp, self.pid, self.p_name, self.packet_size, self.header_size, self.payload_size, self.window_size, found_flags
+
+    def get_packet_key(self):
+        """Get flow key from a packet"""
+        return self.src_ip, self.dst_ip, self.src_port, self.dst_port, self.protocol
