@@ -184,11 +184,3 @@ class FlowClassifier:
 
     def start_capture(self, interface=None, packet_filter="ip"):
         sniff(iface=interface, filter=packet_filter, prn=self.process_packet, store=False)
-
-def main():
-    model_path = "../../models/CIC_IDS_2017/xgb_clf_multiclass.pkl"
-    classifier = FlowClassifier(model_path)
-    classifier.start_capture()
-
-if __name__ =="__main__":
-    main()
