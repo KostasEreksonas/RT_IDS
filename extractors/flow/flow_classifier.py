@@ -32,8 +32,27 @@ def sort_key(key):
     else:
         return dst[0], src[0], dst[1], src[1], protocol
 
-def classify(stats):
+def classify(original_flow_key, stats) -> tuple[str, str, int, int, str, dict]:
     """Classify given flow record"""
+    (src_ip, dst_ip, src_port, dst_port, protocol) = original_flow_key
+
+    attacks = [
+        'Benign',
+        'Bot',
+        'DDoS',
+        'DoS Goldeneye',
+        'DoS Hulk',
+        'DoS Slowhttptest',
+        'DoS Slowloris',
+        'FTP-Patator',
+        'Heartbleed',
+        'Infiltration',
+        'SSH-Patator',
+        'Brute Force',
+        'SQL Injection',
+        'XSS'
+    ]
+
     model_path = "../../models/CIC_IDS_2017/xgb_clf_multiclass.pkl"
     with open(model_path, 'rb') as file:
         model = pickle.load(file)
@@ -45,8 +64,14 @@ def classify(stats):
     stats = scaler.fit_transform(stats)
     stats = stats.reshape(1, -1)
 
-    results = model.predict_proba(stats)
-    return results
+    predictions = model.predict_proba(stats)
+    predictions = predictions.reshape(-1, 1)
+    results = {}
+
+    for key, value in zip(attacks, predictions):
+        results[key] = value[0]
+
+    return src_ip, src_port, dst_ip, dst_port, protocol, results
 
 def info(network_packet):
     global inactivity_check_time
@@ -103,7 +128,8 @@ def info(network_packet):
                 last_seen = flow_cache[flow_key].get_last_seen_timestamp()
                 if current_timestamp - last_seen > inactive_timeout:
                     stats = flow_cache[flow_key].export_flow_statistics()
-                    print(f"{classify(stats)}, Reason: Inactive Timeout")
+                    original_flow_key = flow_cache[flow_key].get_original_flow_key()
+                    print(f"{classify(original_flow_key, stats)}, Reason: Inactive Timeout")
                     del flow_cache[flow_key]
             inactivity_check_time = current_timestamp
 
@@ -123,13 +149,13 @@ def info(network_packet):
                 flow_cache[flow_key].count_flag_statistics(network_packet, flags, packet_key)
                 stats = flow_cache[flow_key].export_flow_statistics()
                 if rst:
-                    print(f"{classify(stats)}, Reason: RST")
+                    print(f"{classify(packet_key, stats)}, Reason: RST")
                 elif fin:
-                    print(f"{classify(stats)}, Reason: FIN")
+                    print(f"{classify(packet_key, stats)}, Reason: FIN")
                 del flow_cache[flow_key]
             elif current_timestamp - initial_timestamp > active_timeout:
                 stats = flow_cache[flow_key].export_flow_statistics()
-                print(f"{classify(stats)}, Reason: Active Timeout")
+                print(f"{classify(packet_key, stats)}, Reason: Active Timeout")
                 del flow_cache[flow_key]
 
                 # Initialize new flow in place of expired one and update stats based on first packet
