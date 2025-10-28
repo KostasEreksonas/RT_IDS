@@ -15,6 +15,7 @@ class FlowClassifier:
         Initialize flow classifier
         Args:
             model_path: Path to XGBoost classifier
+            socketio: Flask-SocketIO instance for emitting events
             active_timeout: Maximum flow duration before export (seconds)
             inactive_timeout: Maximum inactive period before export (seconds)
             inactivity_check_period: How often check for inactive flows (seconds)
@@ -24,6 +25,7 @@ class FlowClassifier:
         self.inactive_timeout = inactive_timeout
         self.inactivity_check_period = inactivity_check_period
         self.inactivity_check_time = time.time()
+        #self.socketio = socketio
 
         # Load classifier
         with open(model_path, 'rb') as file:
@@ -82,7 +84,12 @@ class FlowClassifier:
                 if current_timestamp - last_seen > self.inactive_timeout:
                     stats = self.flow_cache[flow_key].export_flow_statistics()
                     original_flow_key = self.flow_cache[flow_key].get_original_flow_key()
-                    print(f"{self.classify(original_flow_key, stats)}, Reason: Inactive Timeout")
+                    flow_data = {
+                        "results": self.classify(original_flow_key, stats),
+                        "reason": "Inactive Timeout"
+                    }
+                    #self.emit_flow_record(flow_data)
+                    print(f"{flow_data["results"]}, Reason: {flow_data["reason"]}")
                     del self.flow_cache[flow_key]
 
             self.inactivity_check_time = current_timestamp
@@ -106,11 +113,21 @@ class FlowClassifier:
         if rst or fin:
             stats = self.flow_cache[flow_key].export_flow_statistics()
             reason = "RST" if rst else "FIN"
-            print(f"{self.classify(packet_key, stats)}, Reason: {reason}")
+            flow_data = {
+                "results": self.classify(packet_key, stats),
+                "reason": reason
+            }
+            #self.emit_flow_record(flow_data)
+            print(f"{flow_data["results"]}, Reason: {flow_data["reason"]}")
             del self.flow_cache[flow_key]
         elif current_timestamp - initial_timestamp > self.active_timeout:
             stats = self.flow_cache[flow_key].export_flow_statistics()
-            print(f"{self.classify(packet_key, stats)}, Reason: Active Timeout")
+            flow_data = {
+                "results": self.classify(packet_key, stats),
+                "reason": "Active Timeout"
+            }
+            #self.emit_flow_record(flow_data)
+            print(f"{flow_data["results"]}, Reason: {flow_data["reason"]}")
             del self.flow_cache[flow_key]
 
             # Initialize new flow in place of expired one and update stats based on first packet
@@ -184,3 +201,7 @@ class FlowClassifier:
 
     def start_capture(self, interface=None, packet_filter="ip"):
         sniff(iface=interface, filter=packet_filter, prn=self.process_packet, store=False)
+
+    def emit_flow_record(self, flow_data):
+        """Emit new flow records for the fronted to capture"""
+        self.socketio.emit('flow', flow_data, namespace='/flows')
