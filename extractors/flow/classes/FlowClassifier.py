@@ -10,11 +10,11 @@ from classes.FlowFeatures import FlowFeatures
 
 class FlowClassifier:
     """Real-time network flow analyzer"""
-    def __init__(self, model_path, active_timeout=60, inactive_timeout=30, inactivity_check_period=5):
+    def __init__(self, classifier_path, anomaly_detector, active_timeout=60, inactive_timeout=30, inactivity_check_period=5):
         """
         Initialize flow classifier
         Args:
-            model_path: Path to XGBoost classifier
+            classifier_path: Path to XGBoost classifier
             socketio: Flask-SocketIO instance for emitting events
             active_timeout: Maximum flow duration before export (seconds)
             inactive_timeout: Maximum inactive period before export (seconds)
@@ -25,11 +25,14 @@ class FlowClassifier:
         self.inactive_timeout = inactive_timeout
         self.inactivity_check_period = inactivity_check_period
         self.inactivity_check_time = time.time()
-        #self.socketio = socketio
 
         # Load classifier
-        with open(model_path, 'rb') as file:
-            self.model = pickle.load(file)
+        with open(classifier_path, 'rb') as file:
+            self.classifier = pickle.load(file)
+
+        # Load anomaly detection model
+        with open(anomaly_detector, 'rb') as file:
+            self.detector = pickle.load(file)
 
         self.scaler = StandardScaler()
 
@@ -63,18 +66,29 @@ class FlowClassifier:
         else:
             return dst[0], src[0], dst[1], src[1], protocol
 
-    def classify(self, original_flow_key, stats) -> tuple[str, str, int, int, str, dict]:
-        """Classify given flow record"""
-        (src_ip, dst_ip, src_port, dst_port, protocol) = original_flow_key
-
+    def prepare_stats(self, stats):
+        """Prepare statistical data to feed into ML models"""
         stats = np.asarray(stats)
         stats = stats.reshape(-1, 1)
         stats = self.scaler.fit_transform(stats).reshape(1, -1)
+        return stats
 
-        predictions = self.model.predict_proba(stats).reshape(-1, 1)
+    def classify(self, stats) -> dict:
+        """Classify given flow record"""
+        predictions = self.classifier.predict_proba(stats).reshape(-1, 1)
         results = {attack: prob[0] for attack, prob in zip(self.attacks, predictions)}
 
-        return src_ip, src_port, dst_ip, dst_port, protocol, results
+        return results
+
+    def detect_anomalies(self, stats) -> str:
+        """Use isolation forest for anomaly detection"""
+        predictions = self.detector.predict(stats)
+        if predictions == 1:
+            return "Normal"
+        elif predictions == 0:
+            return "Anomaly"
+        else:
+            return "Undefined"
 
     def check_inactive_flows(self, current_timestamp) -> None:
         """Export flows that exceeded inactive timeout"""
@@ -83,13 +97,14 @@ class FlowClassifier:
                 last_seen = self.flow_cache[flow_key].get_last_seen_timestamp()
                 if current_timestamp - last_seen > self.inactive_timeout:
                     stats = self.flow_cache[flow_key].export_flow_statistics()
-                    original_flow_key = self.flow_cache[flow_key].get_original_flow_key()
+                    stats = self.prepare_stats(stats)
                     flow_data = {
-                        "results": self.classify(original_flow_key, stats),
+                        "original_flow_key": self.flow_cache[flow_key].get_original_flow_key(),
+                        "results": self.classify(stats),
+                        "anomalies": self.detect_anomalies(stats),
                         "reason": "Inactive Timeout"
                     }
-                    #self.emit_flow_record(flow_data)
-                    print(f"{flow_data["results"]}, Reason: {flow_data["reason"]}")
+                    print(f"{flow_data["original_flow_key"]}, {flow_data["results"]}, {flow_data["anomalies"]}, Reason: {flow_data["reason"]}")
                     del self.flow_cache[flow_key]
 
             self.inactivity_check_time = current_timestamp
@@ -112,22 +127,26 @@ class FlowClassifier:
         # Check for TCP RST/FIN flags for TCP flow termination
         if rst or fin:
             stats = self.flow_cache[flow_key].export_flow_statistics()
+            stats = self.prepare_stats(stats)
             reason = "RST" if rst else "FIN"
             flow_data = {
-                "results": self.classify(packet_key, stats),
+                "original_flow_key": self.flow_cache[flow_key].get_original_flow_key(),
+                "results": self.classify(stats),
+                "anomalies": self.detect_anomalies(stats),
                 "reason": reason
             }
-            #self.emit_flow_record(flow_data)
-            print(f"{flow_data["results"]}, Reason: {flow_data["reason"]}")
+            print(f"{flow_data["original_flow_key"]}, {flow_data["results"]}, {flow_data["anomalies"]}, Reason: {flow_data["reason"]}")
             del self.flow_cache[flow_key]
         elif current_timestamp - initial_timestamp > self.active_timeout:
             stats = self.flow_cache[flow_key].export_flow_statistics()
+            stats = self.prepare_stats(stats)
             flow_data = {
-                "results": self.classify(packet_key, stats),
+                "original_flow_key": self.flow_cache[flow_key].get_original_flow_key(),
+                "results": self.classify(stats),
+                "anomalies": self.detect_anomalies(stats),
                 "reason": "Active Timeout"
             }
-            #self.emit_flow_record(flow_data)
-            print(f"{flow_data["results"]}, Reason: {flow_data["reason"]}")
+            print(f"{flow_data["original_flow_key"]}, {flow_data["results"]}, {flow_data["anomalies"]}, Reason: {flow_data["reason"]}")
             del self.flow_cache[flow_key]
 
             # Initialize new flow in place of expired one and update stats based on first packet
@@ -201,7 +220,3 @@ class FlowClassifier:
 
     def start_capture(self, interface=None, packet_filter="ip"):
         sniff(iface=interface, filter=packet_filter, prn=self.process_packet, store=False)
-
-    def emit_flow_record(self, flow_data):
-        """Emit new flow records for the fronted to capture"""
-        self.socketio.emit('flow', flow_data, namespace='/flows')
